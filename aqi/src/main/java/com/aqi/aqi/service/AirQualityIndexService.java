@@ -29,6 +29,9 @@ public class AirQualityIndexService {
     private static final String API_URL = "https://api.waqi.info/feed/{city}/?token={token}";
 
     public AirQualityIndexResponseDto getAirQualityIndexByCity(String city) {
+        if (city==null || city.isEmpty() || city.isBlank()) {
+            throw new AirQualityIndexException("Mandatory field City missing");
+        }
         if (airQualityIndexCacheHandler.getAirQualityIndexResponseFromCache(city) != null) {
             return airQualityIndexCacheHandler.getAirQualityIndexResponseFromCache(city);
         }
