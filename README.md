@@ -1,5 +1,5 @@
 Get Air Quality Index by City
-1. EndPoint: http://localhost:8080/api/air-quality-index/?city=Asansol
+1. EndPoint: http://localhost:8080/api/air-quality-index/?city=Pune
 2. Method: GET
 3. Description: Fetches the air quality index data for the specified city.
 4. URL Parameters: city (required) The name of the city for which to fetch the air quality index.
