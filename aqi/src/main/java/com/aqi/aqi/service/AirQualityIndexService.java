@@ -1,6 +1,7 @@
 package com.aqi.aqi.service;
 
-import com.aqi.aqi.dto.AirQualityIndexDto;
+import com.aqi.aqi.cache.AirQualityIndexCacheHandler;
+import com.aqi.aqi.dto.AirQualityIndexResponseDto;
 import com.aqi.aqi.dto.ForecastDto;
 import com.aqi.aqi.exception.AirQualityIndexException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -19,20 +20,26 @@ public class AirQualityIndexService {
     @Autowired
     private RestTemplate restTemplate;
 
+    @Autowired
+    private AirQualityIndexCacheHandler airQualityIndexCacheHandler;
+
     @Value("${aqi.api.token}")
     private String apiToken;
 
     private static final String API_URL = "https://api.waqi.info/feed/{city}/?token={token}";
 
-    public AirQualityIndexDto getAirQualityIndexByCity(String city) {
+    public AirQualityIndexResponseDto getAirQualityIndexByCity(String city) {
+        if (airQualityIndexCacheHandler.getAirQualityIndexResponseFromCache(city) != null) {
+            return airQualityIndexCacheHandler.getAirQualityIndexResponseFromCache(city);
+        }
         String url = API_URL.replace("{city}", city).replace("{token}", apiToken);
         String response = restTemplate.getForObject(url, String.class);
-        return mapResponseToDTO(response);
+        return mapResponseToDTO(response, city);
     }
 
-    private AirQualityIndexDto mapResponseToDTO(String jsonResponse) {
+    private AirQualityIndexResponseDto mapResponseToDTO(String jsonResponse, String city) {
 
-        AirQualityIndexDto airQualityIndexDto = null;
+        AirQualityIndexResponseDto airQualityIndexResponseDto = null;
         try {
             ObjectMapper objectMapper = new ObjectMapper();
             JsonNode rootNode = objectMapper.readTree(jsonResponse);
@@ -41,7 +48,7 @@ public class AirQualityIndexService {
                 JsonNode dataNode = rootNode.path("data");
                 JsonNode forecastNode = dataNode.path("forecast").path("daily");
 
-                airQualityIndexDto = AirQualityIndexDto.builder()
+                airQualityIndexResponseDto = AirQualityIndexResponseDto.builder()
                         .aqi(dataNode.path("aqi").asInt())
                         .idx(dataNode.path("idx").asInt())
                         .cityName(dataNode.path("city").path("name").asText())
@@ -50,6 +57,7 @@ public class AirQualityIndexService {
                         .pm25(parseForecastArray(forecastNode.path("pm25")))
                         .uvi(parseForecastArray(forecastNode.path("uvi")))
                         .build();
+                airQualityIndexCacheHandler.putAirQualityIndexResponseInCache(airQualityIndexResponseDto, city);
             } else if (rootNode.path("status").asText().equals("error")) {
                 String errorMessage = rootNode.path("data").asText();
                 switch (errorMessage) {
@@ -67,7 +75,7 @@ public class AirQualityIndexService {
             throw new AirQualityIndexException(e.getMessage());
         }
 
-        return airQualityIndexDto;
+        return airQualityIndexResponseDto;
     }
 
     private List<ForecastDto> parseForecastArray(JsonNode forecastArray) {
